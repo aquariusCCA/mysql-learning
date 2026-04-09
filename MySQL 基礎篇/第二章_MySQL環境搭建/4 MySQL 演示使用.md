@@ -1,4 +1,25 @@
-# 4.1 MySQL的使用演示
+# 4 MySQL 演示使用
+
+## 关键字
+
+- `show databases`：查看当前服务器中的所有数据库
+- `create database`：创建数据库
+- `use`：切换当前默认数据库
+- `show tables`：查看数据库中的所有表
+- `create table`：创建数据表
+- `select * from`：查询表中的数据
+- `insert into`：向表中插入记录
+- `show create table`：查看表的建表语句
+- `show create database`：查看数据库的创建信息
+- `drop table`：删除数据表
+- `drop database`：删除数据库
+- `ERROR 1046 (3D000)`：没有选择数据库
+- `ERROR 1366 (HY000)`：字符集不匹配导致插入中文报错
+- `character_%` `collation_%`：查看字符集与校对规则
+- `my.ini`：修改 MySQL 默认编码的配置文件
+- `latin1` `utf8` `utf8mb4`：常见字符集设置
+
+## 4.1 MySQL的使用演示
 
 ## 4.1.1 查看所有的数据库
 
@@ -161,7 +182,7 @@ drop database 数据库名;
 drop database atguigudb;
 ```
 
-# 4.2 MySQL的编码设置
+## 4.2 MySQL的编码设置
 
 ## MySQL5.7 中
 
