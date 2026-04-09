@@ -1,6 +1,10 @@
-> ✏️**MySQL 图形化管理工具极大地方便了数据库的操作与管理，常用的图形化管理工具有：MySQL Workbench、phpMyAdmin、Navicat Preminum、MySQLDumper、SQLyog、dbeaver、MySQL ODBC Connector。**
-
 # 5 MySQL 图形化管理工具
+
+## 本节导读
+
+这一节主要介绍几种常见的 MySQL 图形化管理工具，以及它们在连接数据库、浏览对象、执行 SQL 和可视化管理上的使用方式。
+
+如果你已经能用命令行操作数据库，这篇可以帮助你建立“图形化工具能替你做什么”的直观认识；如果只是想快速找到某个工具的入口，也可以直接按工具名称跳读。
 
 ## 关键字
 
@@ -15,6 +19,8 @@
 - `mysql_native_password`：旧版本常见认证方式
 - `ALTER USER`：修改用户认证方式与密码
 - `FLUSH PRIVILEGES`：刷新权限使修改生效
+
+> ✏️**MySQL 图形化管理工具极大地方便了数据库的操作与管理，常用的图形化管理工具有：MySQL Workbench、phpMyAdmin、Navicat Preminum、MySQLDumper、SQLyog、dbeaver、MySQL ODBC Connector。**
 
 ## 工具1. MySQL Workbench
 
