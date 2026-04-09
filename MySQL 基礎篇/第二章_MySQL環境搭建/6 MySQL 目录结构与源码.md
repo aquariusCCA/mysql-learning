@@ -1,4 +1,20 @@
-# 6.1 主要目录结构
+# 6 MySQL 目录结构与源码
+
+## 关键字
+
+- `bin`：MySQL 可执行文件目录
+- `mysql.exe`：常用的 MySQL 命令行客户端程序
+- `data`：MySQL 数据文件目录
+- `my.ini`：MySQL 主要配置文件
+- `ProgramData`：Windows 下常见的数据目录位置
+- `Source Code`：下载 MySQL 源代码时需要选择的类型
+- `C++`：MySQL 主要使用的开发语言
+- `sql`：MySQL 核心代码目录
+- `libmysql`：客户端程序 API 相关目录
+- `mysql-test`：测试工具目录
+- `mysys`：操作系统相关函数和辅助函数目录
+
+## 6.1 主要目录结构
 
 | MySQL的目录结构 | 说明 |
 | --- | --- |
@@ -8,7 +24,7 @@
 | `my.ini` 文件 | MySQL的主要配置文件 |
 | `C:\ProgramData\MySQL\MySQL Server 8.0\data\` | 用户创建的数据库所在的目录 |
 
-# 6.2 MySQL 源代码获取
+## 6.2 MySQL 源代码获取
 
 首先，你要进入 MySQL下载界面。 这里你不要选择用默认的「Microsoft Windows」，而是要通过下拉栏，找到「Source Code」，在下面的操作系统版本里面， 选择 Windows（Architecture Independent），然后点击下载。
 
