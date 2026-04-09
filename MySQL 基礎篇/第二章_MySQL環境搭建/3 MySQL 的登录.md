@@ -1,4 +1,21 @@
-# 3.1 服务的启动与停止
+# 3 MySQL 的登录
+
+## 关键字
+
+- `MySQL服务`：登录前需先确认服务已启动
+- `services.msc`：Windows 服务管理入口
+- `MySQL80`：Windows 下常见的 MySQL 服务名
+- `net start`：启动 MySQL 服务
+- `net stop`：停止 MySQL 服务
+- `mysql -h -P -u -p`：命令行登录 MySQL 的基本格式
+- `localhost` `127.0.0.1`：本机连接常用主机地址
+- `3306`：MySQL 默认端口
+- `root`：默认常见管理员账户
+- `mysql -V` `mysql --version`：查看客户端版本
+- `select version()`：登录后查看服务端版本
+- `exit` `quit`：退出 MySQL 登录
+
+## 3.1 服务的启动与停止
 
 MySQL 安装完毕之后，需要启动服务器进程，不然客户端无法连接数据库。
 
@@ -35,7 +52,7 @@ net stop MySQL服务名
 
 ---
 
-# 3.2 自带客户端的登录与退出
+## 3.2 自带客户端的登录与退出
 
 当 MySQL 服务启动完成后，便可以通过客户端来登录 MySQL 数据库。注意：确认服务是开启的。
 
