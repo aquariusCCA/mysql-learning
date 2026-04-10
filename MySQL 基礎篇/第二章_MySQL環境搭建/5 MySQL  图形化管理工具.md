@@ -1,12 +1,24 @@
 # 5 MySQL 图形化管理工具
 
 > 所属章节：[第二章_MySQL環境搭建](./README.md)
+> 建议回查情境：想选择 MySQL 图形化管理工具、忘记 Workbench 的入口和界面分区、旧版工具连接 MySQL8 出现认证插件报错时
 
 ## 本节导读
 
 这一节主要介绍几种常见的 MySQL 图形化管理工具，以及它们在连接数据库、浏览对象、执行 SQL 和可视化管理上的使用方式。
 
 如果你已经能用命令行操作数据库，这篇可以帮助你建立“图形化工具能替你做什么”的直观认识；如果只是想快速找到某个工具的入口，也可以直接按工具名称跳读。
+
+如果你还不熟悉命令行里的基础操作，可以先回看 [4 MySQL 演示使用](./4%20MySQL%20演示使用.md)；如果图形化工具连接 MySQL8 失败，可以直接跳到本文的「常见连接问题」。
+
+## 你会在这篇学到什么
+
+- MySQL Workbench、Navicat、SQLyog、DBeaver 分别是什么类型的工具。
+- 如何打开并使用 MySQL Workbench 连接本地 MySQL。
+- Workbench 界面中导航栏、工作区、输出区分别承担什么作用。
+- DBeaver 为什么可能需要 Java / JDK 环境。
+- 旧版图形化工具连接 MySQL8 时，为什么可能出现 `caching_sha2_password` 相关报错。
+- 如何通过升级工具或修改用户认证插件处理连接问题。
 
 ## 关键字
 
@@ -22,9 +34,9 @@
 - `ALTER USER`：修改用户认证方式与密码
 - `FLUSH PRIVILEGES`：刷新权限使修改生效
 
-> ✏️**MySQL 图形化管理工具极大地方便了数据库的操作与管理，常用的图形化管理工具有：MySQL Workbench、phpMyAdmin、Navicat Preminum、MySQLDumper、SQLyog、dbeaver、MySQL ODBC Connector。**
+> ✏️**MySQL 图形化管理工具极大地方便了数据库的操作与管理，常用的图形化管理工具有：MySQL Workbench、phpMyAdmin、Navicat Premium、MySQLDumper、SQLyog、DBeaver、MySQL ODBC Connector。**
 
-## 工具1. MySQL Workbench
+## 工具1：MySQL Workbench
 
 MySQL 官方提供的图形化管理工具`MySQL Workbench`完全支持`MySQL 5.0`以上的版本。
 
@@ -32,9 +44,9 @@ MySQL 官方提供的图形化管理工具`MySQL Workbench`完全支持`MySQL 5.
 
 `MySQL Workbench` 为数据库管理员、程序开发者和系统规划师提供可视化设计、模型建立、以及数据库管理功能。它包含了用于创建复杂的数据建模 ER 模型，正向和逆向数据库工程，也可以用于执行通常需要花费大量时间的、难以变更和管理的文档任务。
 
-下载地址：[http://dev.mysql.com/downloads/workbench/。](http://dev.mysql.com/downloads/workbench/%E3%80%82)
+下载地址：[http://dev.mysql.com/downloads/workbench/](http://dev.mysql.com/downloads/workbench/)
 
-### 使用：
+### 使用
 
 首先，我们点击 Windows 左下角的「开始」按钮，如果你是 Win10 系统，可以直接看到所有程序。接着，找到「MySQL」，点开，找到「`MySQL Workbench 8.0 CE`」。点击打开 `Workbench`，如下图所示：
 
@@ -50,31 +62,31 @@ MySQL 官方提供的图形化管理工具`MySQL Workbench`完全支持`MySQL 5.
 
 ![image-20211014195142849.png](./images/image-20211014195142849.png)
 
-- 上方是菜单。左上方是导航栏，这里我们可以看到 MySQL 数据库服务器里面的数据 库，包括数据表、视图、存储过程和函数；左下方是信息栏，可以显示上方选中的数据 库、数据表等对象的信息。
-- 中间上方是工作区，你可以在这里写 SQL 语句，点击上方菜单栏左边的第三个运行按 钮，就可以执行工作区的 SQL 语句了。
-- 中间下方是输出区，用来显示 SQL 语句的运行情况，包括什么时间开始运行的、运行的 内容、运行的输出，以及所花费的时长等信息。
+- 上方是菜单。左上方是导航栏，这里我们可以看到 MySQL 数据库服务器里面的数据库，包括数据表、视图、存储过程和函数；左下方是信息栏，可以显示上方选中的数据库、数据表等对象的信息。
+- 中间上方是工作区，你可以在这里写 SQL 语句，点击上方菜单栏左边的第三个运行按钮，就可以执行工作区的 SQL 语句了。
+- 中间下方是输出区，用来显示 SQL 语句的运行情况，包括什么时间开始运行的、运行的内容、运行的输出，以及所花费的时长等信息。
 
-好了，下面我们就用 Workbench 实际创建一个数据库，并且导入一个 Excel 数据文件， 来生成一个数据表。数据表是存储数据的载体，有了数据表以后，我们就能对数据进行操作了。
+好了，下面我们就用 Workbench 实际创建一个数据库，并且导入一个 Excel 数据文件，来生成一个数据表。数据表是存储数据的载体，有了数据表以后，我们就能对数据进行操作了。
 
-## 工具2. Navicat
+## 工具2：Navicat
 
 Navicat MySQL 是一个强大的 MySQL 数据库服务器管理和开发工具。它可以与任何 `3.21` 或以上版本的 MySQL 一起工作，支持触发器、存储过程、函数、事件、视图、管理用户等，对于新手来说易学易用。
 
 其精心设计的图形用户界面（GUI）可以让用户用一种安全简便的方式来快速方便地创建、组织、访问和共享信息。Navicat 支持中文，有免费版本提供。
 
-下载地址：[http://www.navicat.com/。](http://www.navicat.com/%E3%80%82)
+下载地址：[http://www.navicat.com/](http://www.navicat.com/)
 
 ![1557378069584.png](./images/1557378069584.png)
 
 ![image-20210913180359685.png](./images/image-20210913180359685.png)
 
-## 工具3. SQLyog
+## 工具3：SQLyog
 
 SQLyog 是业界著名的 Webyog 公司出品的一款简洁高效、功能强大的图形化 MySQL 数据库管理工具。
 
-这款工具是使用C++语言开发的。该工具可以方便地创建数据库、表、视图和索引等，还可以方便地进行插入、更新和删除等操作，同时可以方便地进行数据库、数据表的备份和还原。该工具不仅可以通过SQL文件进行大量文件的导入和导出，还可以导入和导出XML、HTML和CSV等多种格式的数据。
+这款工具是使用 C++ 语言开发的。该工具可以方便地创建数据库、表、视图和索引等，还可以方便地进行插入、更新和删除等操作，同时可以方便地进行数据库、数据表的备份和还原。该工具不仅可以通过 SQL 文件进行大量文件的导入和导出，还可以导入和导出 XML、HTML 和 CSV 等多种格式的数据。
 
-下载地址：[http://www.webyog.com/，读者也可以搜索中文版的下载地址。](http://www.webyog.com/%EF%BC%8C%E8%AF%BB%E8%80%85%E4%B9%9F%E5%8F%AF%E4%BB%A5%E6%90%9C%E7%B4%A2%E4%B8%AD%E6%96%87%E7%89%88%E7%9A%84%E4%B8%8B%E8%BD%BD%E5%9C%B0%E5%9D%80%E3%80%82)
+下载地址：[http://www.webyog.com/](http://www.webyog.com/)
 
 ![image-20211014213018979.png](./images/image-20211014213018979.png)
 
@@ -88,7 +100,7 @@ DBeaver 比大多数的 SQL 管理工具要轻量，而且支持中文界面。
 
 DBeaver 社区版作为一个免费开源的产品，和其他类似的软件相比，在功能和易用性上都毫不逊色。
 
-唯一需要注意是 DBeaver 是用 Java 编程语言开发的，所以需要拥有 JDK（Java Development ToolKit）环境。如果电脑上没有 JDK，在选择安装 DBeaver组件时，勾选「Include Java」即可。
+唯一需要注意是 DBeaver 是用 Java 编程语言开发的，所以需要拥有 JDK（Java Development Kit）环境。如果电脑上没有 JDK，在选择安装 DBeaver 组件时，勾选「Include Java」即可。
 
 下载地址：[https://dbeaver.io/download/](https://dbeaver.io/download/)
 
@@ -124,3 +136,33 @@ FLUSH PRIVILEGES;
 ```
 
 ![image-20211019215408965.png](./images/image-20211019215408965.png)
+
+## 常见回查问题
+
+- MySQL 官方的图形化管理工具是哪一个？
+- Workbench 的导航栏、工作区、输出区分别有什么作用？
+- Navicat、SQLyog、DBeaver 大致适合做什么？
+- DBeaver 为什么可能需要 Java / JDK 环境？
+- 图形化工具连接 MySQL8 时出现 `caching_sha2_password` 报错是什么原因？
+- 处理 MySQL8 认证插件报错时，优先升级工具还是修改用户认证方式？
+- 如果要改回 `mysql_native_password`，需要执行哪些 SQL？
+
+## 一句话抓核心
+
+图形化工具的核心作用是把数据库连接、对象浏览、SQL 执行和部分管理操作可视化；遇到 MySQL8 连接失败时，优先判断是不是工具版本和认证插件不兼容。
+
+## 小结
+
+这一节你需要记住：
+
+- MySQL Workbench 是 MySQL 官方图形化管理工具，适合连接本地数据库、执行 SQL 和查看数据库对象。
+- Navicat、SQLyog、DBeaver 都属于常见图形化管理工具，区别主要在支持范围、功能定位和使用习惯。
+- DBeaver 是通用数据库工具，支持多种数据库，但安装时要注意 Java 环境。
+- 旧版图形化工具连接 MySQL8 报 `caching_sha2_password` 时，常见原因是工具不支持 MySQL8 默认认证插件。
+- 解决认证插件问题时，优先考虑升级图形化工具；如果课程环境需要，也可以把指定用户改为 `mysql_native_password`。
+
+## 延伸阅读
+
+- [3 MySQL 的登录](./3%20MySQL%20的登录.md)
+- [4 MySQL 演示使用](./4%20MySQL%20演示使用.md)
+- [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md)
