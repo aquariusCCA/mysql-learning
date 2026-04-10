@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repair Study Notes"
+  short_description: "重構混亂、有錯或前後矛盾的學習筆記，修復內容邏輯"
+  default_prompt: "Use $repair-study-notes to repair and restructure a confusing study note into a clear learning version."
