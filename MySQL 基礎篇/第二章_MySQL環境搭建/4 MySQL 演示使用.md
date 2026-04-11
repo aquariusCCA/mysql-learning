@@ -1,15 +1,17 @@
 # 4 MySQL 演示使用
 
-> 所属章节：[第二章_MySQL環境搭建](./README.md)
+> 所属章节：MySQL 基礎篇 / 第二章_MySQL環境搭建
 > 建议回查情境：想快速复习基础 SQL 操作、忘记 `use` / `show tables` / `create table` 写法、遇到 `ERROR 1046` 或 `ERROR 1366` 时
+> 上一节：[3 MySQL 的登录](./3%20MySQL%20的登录.md)
+> 下一节：[5 MySQL 图形化管理工具](./5%20MySQL%20%20图形化管理工具.md)
 
 ## 本节导读
 
 这一节通过一组连续的 SQL 操作，演示如何查看数据库、创建数据库与表、插入数据、查询数据，以及处理使用过程中的常见报错。
 
-这篇适合边看边敲命令。第一次学习建议跟着顺序实际操作一次；之后复习时，可以直接按命令名称或错误编号回查对应段落。
+这篇适合边看边敲命令。第一次学习时，建议按“先建库 -> 再建表 -> 再插入和查询 -> 最后看字符集问题”的顺序实际操作一次；如果只是复习，可以直接按命令名称或错误编号跳到对应段落。
 
-如果你还不熟悉如何登录 MySQL，可以先回看 [3 MySQL 的登录](./3%20MySQL%20的登录.md)；如果主要是排查字符集或乱码问题，可以直接跳到本篇的 4.2，或回查 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md)。
+如果你还不熟悉如何登录 MySQL，可以先回看 [3 MySQL 的登录](./3%20MySQL%20的登录.md)；如果主要是排查字符集或乱码问题，可以直接跳到 `4.2 MySQL 的编码设置`，或回查 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md)。
 
 ## 你会在这篇学到什么
 
@@ -19,7 +21,16 @@
 - 如何查看数据库和表的创建信息。
 - 如何删除表和数据库。
 - 遇到没有选择数据库、中文插入报错时，应如何定位原因。
-- MySQL5.7 与 MySQL8.0 默认字符集差异对中文数据的影响。
+- MySQL 5.7 与 MySQL 8.0 默认字符集差异对中文数据的影响。
+
+## 快速定位
+
+- `4.1.1 查看所有的数据库`：确认当前服务器里有哪些库
+- `4.1.2 创建自己的数据库` 到 `4.1.5 创建新的表`：完成基础建库建表流程
+- `4.1.6 查看一个表的数据` 到 `4.1.7 添加一条记录`：完成最基本的查和增
+- `4.1.8 查看表的创建信息` 与 `4.1.9 查看数据库的创建信息`：排查字符集与建表配置
+- `4.1.10 删除表格` 与 `4.1.11 删除数据库`：收尾清理
+- `4.2 MySQL 的编码设置`：集中处理中文写入与默认字符集问题
 
 ## 关键字
 
@@ -40,7 +51,13 @@
 - `my.ini`：修改 MySQL 默认编码的配置文件
 - `latin1` `utf8` `utf8mb4`：常见字符集设置
 
-## 4.1 MySQL的使用演示
+## 建议阅读顺序
+
+- 第一次练习时，按 `4.1.1` 到 `4.1.11` 的顺序完整操作一遍，最容易建立“建库 -> 建表 -> 写入 -> 查询 -> 清理”的整体流程感。
+- 如果你只是在复习命令，可以重点看 `show databases`、`use`、`show tables`、`create table`、`insert into`、`show create table` 这些高频命令。
+- 如果你已经遇到中文插入报错，不要重头再练一遍，直接跳到 `4.1.7` 的报错示例和 `4.2 MySQL 的编码设置`。
+
+## 4.1 MySQL 的使用演示
 
 ### 4.1.1 查看所有的数据库
 
@@ -48,89 +65,125 @@
 show databases;
 ```
 
-- 「information_schema」是 MySQL 系统自带的数据库，主要保存 MySQL 数据库服务器的系统信息，比如数据库的名称、数据表的名称、字段名称、存取权限、数据文件所在的文件夹和系统使用的文件夹，等等
-- 「performance_schema」是 MySQL 系统自带的数据库，可以用来监控 MySQL 的各类性能指标。
-- 「sys」数据库是 MySQL 系统自带的数据库，主要作用是以一种更容易被理解的方式展示 MySQL 数据库服务器的各类性能指标，帮助系统管理员和开发人员监控 MySQL 的技术性能。
-- 「mysql」数据库保存了 MySQL 数据库服务器运行时需要的系统信息，比如数据文件夹、当前使用的字符集、约束检查信息，等等
+执行后，你通常会看到一些系统自带数据库：
 
+- `information_schema`：保存 MySQL 服务器的系统信息，例如数据库名、表名、字段名、权限信息和数据文件位置等。
+- `performance_schema`：用于监控 MySQL 的各类性能指标。
+- `sys`：把性能与状态信息整理成更容易理解的视图，方便管理员和开发者查看。
+- `mysql`：保存 MySQL 运行时需要的系统信息，例如账户、权限、字符集和约束相关配置。
 
-> **✏️为什么 Workbench 里面我们只能看到「demo」和「sys」这 2 个数据库呢？**
-> 这是因为，Workbench 是图形化的管理工具，主要面向开发人员，「demo」和「sys」这 2 个数据库已经够用了。如果有特殊需求，比如，需要监控 MySQL 数据库各项性能指标、直接操作 MySQL 数据库系统文件等，可以由 DBA 通过 SQL 语句，查看其它的系统数据库。关于工具本身的使用入口，可以回看 [5 MySQL 图形化管理工具](./5%20MySQL%20%20图形化管理工具.md)。
+> ✏️ 为什么 Workbench 里常常只看到 `demo` 和 `sys` 这类数据库？
+>
+> 因为 Workbench 是面向开发者的图形化管理工具，默认只展示最常用的对象。若要进一步查看系统数据库、性能库或更底层的系统信息，通常还是会回到 SQL 命令行操作。关于图形化工具入口，可以回看 [5 MySQL 图形化管理工具](./5%20MySQL%20%20图形化管理工具.md)。
 
 ### 4.1.2 创建自己的数据库
 
+基本语法：
+
 ```sql
 create database 数据库名;
+```
 
-#创建atguigudb数据库，该名称不能与已经存在的数据库重名。
+示例：
+
+```sql
 create database atguigudb;
 ```
 
+数据库名不能与已经存在的数据库重名。
+
 ### 4.1.3 使用自己的数据库
+
+基本语法：
 
 ```sql
 use 数据库名;
+```
 
-#使用atguigudb数据库
+示例：
+
+```sql
 use atguigudb;
 ```
 
-> **✏️说明：**
-> 如果没有使用 use 语句，后面针对数据库的操作也没有加「数据庫名」的限定，那么会报「`ERROR 1046 (3D000): No database selected`（没有选择数据库）」。如果你想集中查看这类报错的处理方式，可以回看 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md) 中对应的问题。
+> ✏️ 如果没有先执行 `use`，后面操作又没有明确写出“数据库名.表名”之类的限定，就可能报：
+>
+> `ERROR 1046 (3D000): No database selected`
+>
+> 这表示当前没有选中默认数据库。更完整的排查说明可回看 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md)。
 
-使用完 use 语句之后，如果接下来的 SQL 都是针对一个数据库操作的，那就不用重复 use 了，如果要针对另一个数据库操作，那么要重新 use。
+当你已经 `use` 了某个数据库后，后续连续执行多条针对同一数据库的 SQL 时，一般不需要重复执行 `use`。只有切换到另一个数据库时，才需要重新执行一次。
 
 ### 4.1.4 查看某个库的所有表格
 
 ```sql
-show tables;  # 要求前面有 use 语句
+show tables;
+```
 
+这条命令要求前面已经先执行过 `use 数据库名;`。
+
+如果你想直接查看指定数据库中的表，也可以写成：
+
+```sql
 show tables from 数据库名;
 ```
 
 ### 4.1.5 创建新的表
 
+基本语法：
+
 ```sql
 create table 表名称(
-	字段名 数据类型,
-	字段名 数据类型
+    字段名 数据类型,
+    字段名 数据类型
 );
 ```
 
-> **✏️说明：如果是最后一个字段，后面就不用加逗号，因为逗号的作用是分割每个字段。**
+> ✏️ 如果是最后一个字段，后面不要再加逗号；逗号只用于分隔字段定义。
+
+示例：
 
 ```sql
-#创建学生表
 create table student(
-	id int,
-  name varchar(20)  #说名字最长不超过20个字符
+    id int,
+    name varchar(20)
 );
 ```
 
+这里的 `varchar(20)` 表示 `name` 最长不超过 20 个字符。
+
 ### 4.1.6 查看一个表的数据
+
+基本语法：
 
 ```sql
 select * from 数据库表名称;
 ```
 
+示例：
+
 ```sql
-#查看学生表的数据
 select * from student;
 ```
 
 ### 4.1.7 添加一条记录
 
+基本语法：
+
 ```sql
 insert into 表名称 values(值列表);
-
-#添加两条记录到student表中
-insert into student values(1,'张三');
-insert into student values(2,'李四');
 ```
 
-报错：
+示例：
 
-```bash
+```sql
+insert into student values(1, '张三');
+insert into student values(2, '李四');
+```
+
+如果此时插入中文报错，可能会看到类似下面的结果：
+
+```text
 mysql> insert into student values(1,'张三');
 ERROR 1366 (HY000): Incorrect string value: '\\xD5\\xC5\\xC8\\xFD' for column 'name' at row 1
 mysql> insert into student values(2,'李四');
@@ -138,21 +191,25 @@ ERROR 1366 (HY000): Incorrect string value: '\\xC0\\xEE\\xCB\\xC4' for column 'n
 mysql> show create table student;
 ```
 
-字符集的问题。
-
-更完整的字符集说明和排查方式，可以回看 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md) 中关于 `ERROR 1366` 和编码修改的内容。
+这通常不是 `insert into` 语法错误，而是字符集问题。更完整的排查方式，可以回看 [7 常见问题的解决（课外内容）](./7%20常见问题的解决(课外内容).md) 中关于 `ERROR 1366` 和编码修改的内容。
 
 ### 4.1.8 查看表的创建信息
 
+基本语法：
+
 ```sql
 show create table 表名称\G
+```
 
-#查看student表的详细创建信息
+示例：
+
+```sql
 show create table student\G
 ```
 
-```bash
-#结果如下
+结果示例：
+
+```text
 *************************** 1. row ***************************
        Table: student
 Create Table: CREATE TABLE `student` (
@@ -162,52 +219,66 @@ Create Table: CREATE TABLE `student` (
 1 row in set (0.00 sec)
 ```
 
-上面的结果显示 student 的表格的默认字符集是「latin1」不支持中文。
+上面的结果显示 `student` 表的默认字符集是 `latin1`，这也是它无法正常保存中文的直接原因之一。
 
 ### 4.1.9 查看数据库的创建信息
 
+基本语法：
+
 ```sql
 show create database 数据库名\G
+```
 
-#查看atguigudb数据库的详细创建信息
+示例：
+
+```sql
 show create database atguigudb\G
 ```
 
-```sql
-#结果如下
+结果示例：
+
+```text
 *************************** 1. row ***************************
        Database: atguigudb
 Create Database: CREATE DATABASE `atguigudb` /*!40100 DEFAULT CHARACTER SET latin1 */
 1 row in set (0.00 sec)
 ```
 
-上面的结果显示 atguigudb 数据库也不支持中文，字符集默认是 latin1。
+从这里也可以看出，`atguigudb` 数据库的默认字符集是 `latin1`，因此不仅表可能不支持中文，数据库级别的默认配置本身也有问题。
 
 ### 4.1.10 删除表格
+
+基本语法：
 
 ```sql
 drop table 表名称;
 ```
 
+示例：
+
 ```sql
-#删除学生表
 drop table student;
 ```
 
 ### 4.1.11 删除数据库
 
+基本语法：
+
 ```sql
 drop database 数据库名;
 ```
 
+示例：
+
 ```sql
-#删除atguigudb数据库
 drop database atguigudb;
 ```
 
-## 4.2 MySQL的编码设置
+## 4.2 MySQL 的编码设置
 
-### MySQL5.7 中
+这一部分主要处理“为什么同样的 SQL，插入中文时会报错”这个问题。
+
+### MySQL 5.7 中
 
 #### 问题再现：命令行操作 SQL 乱码问题
 
@@ -218,51 +289,47 @@ ERROR 1366 (HY000): Incorrect string value: '\\xD5\\xC5\\xC8\\xFD' for column 's
 
 #### 问题解决
 
-步骤1：查看编码命令
+步骤 1：查看当前字符集与校对规则
 
 ```sql
 show variables like 'character_%';
 show variables like 'collation_%';
 ```
 
-步骤2：修改 mysql 的数据目录下的 `my.ini` 配置文件
+步骤 2：修改 MySQL 数据目录下的 `my.ini` 配置文件
 
-```sql
-[mysql]  #大概在63行左右，在其下添加
-...
-default-character-set=utf8  #默认字符集
+```ini
+[mysql]
+default-character-set=utf8
 
-[mysqld]  # 大概在76行左右，在其下添加
-...
+[mysqld]
 character-set-server=utf8
 collation-server=utf8_general_ci
 ```
 
-> **⚠️注意：**
-> 建议修改配置文件使用 notepad++ 等高级文本编辑器，使用记事本等软件打开修改后可能会导致文件编码修改为「含BOM头」的编码，从而服务重启失败。
+> ⚠️ 建议使用 Notepad++ 这类较稳定的文本编辑器修改配置文件。若使用某些编辑器把文件编码改成带 `BOM` 的格式，可能会导致 MySQL 服务重启失败。
 
-步骤3：重启服务
+步骤 3：重启 MySQL 服务
 
-步骤4：查看编码命令
+步骤 4：重新查看字符集配置
 
 ```sql
 show variables like 'character_%';
 show variables like 'collation_%';
 ```
 
-![MySQL编码1.jpg](./images/MySQL%E7%BC%96%E7%A0%811.jpg)
+![MySQL 编码配置示例 1](./images/MySQL%E7%BC%96%E7%A0%811.jpg)
+![MySQL 编码配置示例 2](./images/MySQL%E7%BC%96%E7%A0%812.jpg)
 
-![MySQL编码2.jpg](./images/MySQL%E7%BC%96%E7%A0%812.jpg)
+如果重新查看后的结果与预期一致，就可以重新创建数据库和数据表，再测试插入中文数据。
 
-如果是以上配置就说明对了。接着我们就可以新创建数据库、新创建数据表，接着添加包含中文的数据了。
+### MySQL 8.0 中
 
-### MySQL8.0 中
+在 `MySQL 8.0` 之前，默认字符集通常是 `latin1`，而大家常写的 `utf8` 实际上对应的是 `utf8mb3`。
 
-在 `MySQL 8.0` 版本之前，默认字符集为 `latin1`，`utf8` 字符集指向的是 `utf8mb3`。
+很多网站项目在设计数据库时，都会主动把编码改成 `utf8` 或 `utf8mb4`。如果忘记修改默认编码，就很容易在写入中文时出现乱码或报错。
 
-网站开发人员在数据库设计的时候往往会将编码修改为 `utf8` 字符集。如果遗忘修改默认的编码，就会出现乱码的问题。
-
-从 `MySQL 8.0` 开始，数据库的默认编码改为 `utf8mb4`，从而避免了上述的乱码问题。
+从 `MySQL 8.0` 开始，默认字符集改为 `utf8mb4`，因此相较于 `MySQL 5.7`，默认情况下更不容易遇到中文写入问题。
 
 ## 常见回查问题
 
@@ -272,23 +339,8 @@ show variables like 'collation_%';
 - `create table` 中字段之间为什么要用逗号分隔？
 - 插入中文时报 `ERROR 1366 (HY000)`，应该从哪里查字符集？
 - 如何查看表或数据库的创建信息？
-- MySQL5.7 和 MySQL8.0 在默认字符集上有什么差异？
+- MySQL 5.7 和 MySQL 8.0 在默认字符集上有什么差异？
 - `drop table` 和 `drop database` 分别会删除什么？
-
-## 一句话抓核心
-
-这一节的核心是用一组连续命令串起 MySQL 的基础操作流程：先查看和创建数据库，再切换数据库、创建表、增查数据，最后用创建信息和字符集配置排查中文写入问题。
-
-## 小结
-
-这一节你需要记住：
-
-- `show databases;` 用来查看数据库列表，系统库不一定都会在图形化工具中直接显示。
-- 创建数据库后，后续操作前通常要先用 `use 数据库名;` 选中当前数据库。
-- 建表时字段之间用逗号分隔，但最后一个字段后面不加逗号。
-- `show create table 表名称\G` 和 `show create database 数据库名\G` 可以查看建表和建库时的详细信息。
-- `ERROR 1046` 通常和没有选中数据库有关，`ERROR 1366` 常和字符集不匹配有关。
-- `drop table` 和 `drop database` 是删除操作，练习时要确认对象名称，避免误删。
 
 ## 延伸阅读
 
