@@ -1,607 +1,321 @@
----
-name: repair-study-notes
-description: 用於重構原始學習筆記與課程筆記。適合處理原文難懂、上下文矛盾、知識點混亂、敘述順序失衡、例子與結論對不上、程式碼解說錯誤、或含有明顯錯誤知識的筆記。重點不是只補標題、導讀、導航、README 等外層結構，而是基於原意重新整理內容、修復邏輯、消解衝突、校正錯誤，產出更可學習、可回查、可延續擴充的版本；若內容本身清楚且只需要結構化整理，優先使用一般筆記整理 skill。
----
+## 基础题
 
-# Repair Study Notes
+### 1. 关联前提判断
 
-# 如何使用這個 skill
+`employees` 表和 `departments` 表可以做多表查詢，是因為它們之間存在可對應的關聯字段 `department_id`。這個關聯字段在概念上不一定要已經建立成外鍵，只要查詢時能用它建立正確的對應關係即可。
 
-使用者不需要在 Markdown 檔案中加入特殊語法，也不需要在終端執行指令。
-當使用者要求修復、重構、改寫或校正某個學習筆記檔案，且提到 `repair-study-notes` 或描述符合本 skill 的用途時，Codex 應讀取本 skill 並依照其規則處理目標檔案。
+評語：原本把「能不能關聯」和「非等值連接」混在一起了，這題核心是表之間有可對應的關聯字段。
 
-典型請求：
+### 2. SQL92 基础等值连接
 
-```text
-請用 repair-study-notes 重構 `XXX.md`
-請幫我修復這篇筆記，原文有點亂
-這篇筆記前後矛盾，請整理成可學習的版本
+```sql
+SELECT
+    e.last_name,
+    d.department_name
+FROM employees e, departments d
+WHERE e.department_id = d.department_id;
 ```
 
----
+### 3. SQL99 基础等值连接
 
-當使用者提供的筆記存在以下問題時，使用這個 skill：
-
-- 原文表達難懂，讀者不容易抓到主線
-- 同一篇內前後說法矛盾
-- 例子、結論、定義彼此對不上
-- 知識點順序混亂，導致理解成本高
-- 內容摻雜錯誤知識、錯誤推論或錯誤術語
-- 原文像口語逐字稿、想到哪寫到哪，難以作為學習筆記
-- 原文雖然資訊很多，但不適合直接複習與回查
-
-這個 skill 的核心不是「保留原文形式」，而是：
-
-> **在盡量保留原意的前提下，對內容本身進行重構、修復與澄清。**
-
----
-
-# 核心目標
-
-整理完成後，筆記應盡量達成以下效果：
-
-1. 讀者能快速知道這篇到底在講什麼
-2. 讀者能分清楚定義、條件、推論、例子、例外
-3. 讀者不會被原文中的矛盾與跳躍敘述卡住
-4. 錯誤知識會被修正，或至少被明確標示
-5. 內容順序更符合學習路徑
-6. 複習時可以快速抓到核心
-7. 後續擴充時不會因為原文混亂而越改越亂
-
----
-
-# 這個 skill 與一般筆記整理 skill 的差異
-
-一般整理型 skill 偏向：
-
-- 補標題
-- 補導讀
-- 補導航
-- 補關鍵字
-- 保留原文主體
-
-這個 skill 則允許：
-
-- 重排段落順序
-- 重寫難懂句子
-- 合併重複內容
-- 拆開混在一起的概念
-- 消解前後矛盾
-- 更正明顯錯誤
-- 在必要時用更穩定的教學結構重寫整段內容
-
-也就是說：
-
-> **本 skill 處理的是內容層的修復，不只是版面層的整理。**
-
----
-
-# 與 study-notes-markdown 的配合方式
-
-`repair-study-notes` 與 `study-notes-markdown` 可以串接使用，但不應預設每次都一起使用。
-
-分工如下：
-
-- `repair-study-notes`：負責修內容，包含重構原文、修正錯誤、消解矛盾、重排概念順序、讓例子與結論對上。
-- `study-notes-markdown`：負責整理外層結構，包含標題、導讀、關鍵字、回查入口、章節 README、拆分後導航、倉庫一致性。
-
-使用判斷：
-
-- 若內容本身清楚，只是缺標題、導讀、導航或 README，優先使用 `study-notes-markdown`，不必使用本 skill。
-- 若內容本身難懂、混亂、有錯或像逐字稿，先使用本 skill 修復內容。
-- 若使用本 skill 後涉及拆分多篇、移動檔案、更新章節閱讀順序、補 README 或建立跨檔案導航，再接著使用 `study-notes-markdown`。
-- 若只是單篇內容修復，且不影響章節導航與倉庫結構，可以只使用本 skill。
-
-簡化判斷：
-
-```text
-repair-study-notes = 修內容
-study-notes-markdown = 整入口與倉庫結構
+```sql
+SELECT
+    e.last_name,
+    d.department_name
+FROM employees e
+    INNER JOIN departments d
+    ON e.department_id = d.department_id;
 ```
 
----
-
-# 核心原則
-
-## 1. 忠於原意，但不忠於原句
-
-- 目標是保留原本想表達的知識意圖
-- 不必死守原句、原段順序、原本口語表達
-- 允許把口語改成教學型表達
-- 允許把一大段拆成多個清楚小節
-- 允許把分散在不同位置的同類內容合併
-
-## 2. 理解優先於保留形式
-
-- 若原文形式妨礙理解，可改寫
-- 若原文順序讓讀者難懂，可重排
-- 若原文有重複、繞圈、插話，可刪減噪音
-- 若原文像逐字稿，應轉成真正可讀的筆記
-
-## 3. 先修內容邏輯，再修外層結構
-
-整理順序優先是：
-
-1. 看懂原文在講什麼
-2. 找出矛盾、錯誤、跳步、混淆點
-3. 重新建立知識骨架
-4. 依骨架重寫內容
-5. 再補導讀、關鍵字、回查入口、延伸閱讀
-
-## 4. 錯誤不能直接沿用
-
-若原文存在明顯錯誤，例如：
-
-- 定義錯誤
-- 因果關係錯誤
-- 條件判斷錯誤
-- 程式碼解釋錯誤
-- 術語混用
-- 舉例與結論不一致
-
-則不得只是照抄整理，必須採取以下其中一種做法：
-
-1. 直接修正為正確版本
-2. 標示原文有誤，並給出修正版
-3. 若無法確認正誤，明確標示「此處需查證」
-
-## 5. 矛盾必須顯性處理，不能假裝沒看到
-
-若同一篇筆記出現前後矛盾：
-
-- 不可只保留其中一段而不說明
-- 不可把互相衝突的內容並列卻不處理
-- 應先判斷哪一個版本更合理
-- 能判斷時，採用較合理版本並統一全文
-- 不能判斷時，明確標示衝突點與待確認處
-
-## 6. 重構不是過度濃縮
-
-- 不把教學內容縮成只有提綱
-- 不把完整推理刪成只剩結論
-- 不為了短而犧牲理解
-- 重點是讓內容變清楚，不是變最短
-
-## 7. 讓讀者能「順讀」也能「回查」
-
-重構後的內容應同時支援：
-
-- 第一次閱讀時能一路讀懂
-- 複習時能快速定位重點
-- 忘記某個概念時能單點回查
-- 想看例子時能快速找到例子
-- 想比較概念差異時能快速找到比較段
-
----
-
-# 典型問題類型與處理策略
-
-## 1. 原文難懂
-
-特徵：
-
-- 句子太長
-- 代詞過多，不知道在指什麼
-- 一句話同時塞太多概念
-- 抽象詞太多，沒有落地說明
-
-處理方式：
-
-- 改寫成短句
-- 補出主語與條件
-- 把一段拆成數個小步驟
-- 先講結論，再講理由
-- 必要時加入一句過渡解釋
-
----
-
-## 2. 上下文矛盾
-
-特徵：
-
-- 前面說 A，後面又說非 A
-- 同一術語在不同段落代表不同意思
-- 前面定義與後面例子不一致
-- 程式流程與口頭解說對不上
-
-處理方式：
-
-- 找出衝突點
-- 判斷哪個版本較合理
-- 統一術語、條件與結論
-- 在必要時加上「原文此處前後不一致，以下採用較合理版本」
-
----
-
-## 3. 錯誤知識
-
-特徵：
-
-- 事實性錯誤
-- 概念性錯誤
-- 推論邏輯錯誤
-- 名詞定義錯誤
-- 程式碼行為解讀錯誤
-
-處理方式：
-
-- 直接修正
-- 補上正確說法
-- 若錯誤可能誤導讀者，應明確標示
-- 若需要查證，應加註「待查證」，不要裝作正確
-
----
-
-## 4. 敘述順序失衡
-
-特徵：
-
-- 先講例外，再講定義
-- 先看程式碼，後面才補條件
-- 一直跳來跳去
-- 重要前置知識放在後面
-
-處理方式：
-
-優先重排成以下順序：
-
-1. 問題是什麼
-2. 核心定義
-3. 成立條件 / 判斷條件
-4. 推理過程
-5. 例子
-6. 常見錯誤 / 易混淆點
-7. 一句話總結
-
----
-
-## 5. 重複與噪音太多
-
-特徵：
-
-- 同一件事反覆說
-- 有很多口語填充
-- 舉例過多但沒有新增資訊
-- 插入與主線無關的旁支內容
-
-處理方式：
-
-- 合併重複段
-- 刪除無資訊增量的句子
-- 保留最有代表性的例子
-- 把旁支內容移到「補充」或「延伸」
-
----
-
-# 工作流程
-
-## 第一步：判斷是否需要「內容重構」
-
-符合以下任一情況，直接視為需要重構：
-
-- 原文不是只缺結構，而是本身就難懂
-- 讀完後無法清楚說出核心結論
-- 同篇內出現明顯矛盾
-- 有錯誤知識
-- 原文像逐字稿，不適合直接作為筆記
-- 例子和規則對不上
-- 程式碼與文字解釋互相衝突
-
-若只是：
-
-- 缺標題
-- 缺導讀
-- 缺導航
-- 排版散亂但內容本身清楚
-
-則不必用本 skill，可改用一般整理型 skill。
-
----
-
-## 第二步：抽出原文的知識骨架
-
-在正式改寫前，先辨識：
-
-1. 這篇的主題是什麼
-2. 作者真正想解決的問題是什麼
-3. 核心定義有哪些
-4. 條件與結論有哪些
-5. 例子是在支持哪個規則
-6. 哪些地方互相矛盾
-7. 哪些地方可能有錯
-
-若骨架尚未清楚，不要急著潤飾句子。
-
----
-
-## 第三步：建立新的輸出結構
-
-依內容性質，通常重組為以下結構：
-
-```md
-# 標題
-
-## 這篇在解決什麼問題
-
-## 先講結論 / 核心理解
-
-## 核心定義 / 規則
-
-## 推理或判斷過程
-
-## 例子說明
-
-## 常見混淆點 / 易錯點
-
-## 原文需要修正的地方（如有）
-
-## 一句話抓核心
+### 4. 三表等值连接
+
+```sql
+SELECT
+	e.last_name ,
+	d.department_name ,
+	l.city
+FROM employees e
+    INNER JOIN departments d
+    ON e.department_id = d.department_id
+    INNER JOIN locations l
+    ON d.location_id =l.location_id;
 ```
 
-不是每篇都必須全部出現，但順序應穩定。
+至少需要兩個連接條件
 
----
+### 5. 非等值连接
 
-## 第四步：進行內容重寫
-
-改寫時應做到：
-
-* 句子更短
-* 指代更清楚
-* 條件更明確
-* 概念先後更合理
-* 同一術語全篇一致
-* 結論與例子能互相對上
-
----
-
-## 第五步：最後才補外層輔助結構
-
-必要時再補：
-
-* 本節導讀
-* 關鍵字
-* 建議回查情境
-* 延伸閱讀
-* 常見回查問題
-
----
-
-# 內容判斷準則
-
-## 什麼情況下可以大幅重寫
-
-符合以下任一情況時，可以大幅重寫：
-
-* 原文像逐字稿
-* 原文順序混亂
-* 原文前後矛盾
-* 原文存在錯知識
-* 原文大量重複且難讀
-* 原文難以直接作為教材或複習筆記
-
-## 什麼情況下只做中度改寫
-
-符合以下情況時，以中度改寫為主：
-
-* 主體其實正確，只是表達繞
-* 內容完整，但順序不好
-* 少數術語不一致
-* 個別段落不清楚，但整體可救
-
-## 什麼情況下只做輕度修復
-
-符合以下情況時，只做輕量修復：
-
-* 原文本身很穩
-* 只是個別句子難懂
-* 幾乎沒有矛盾與錯誤
-* 只需做少量澄清與整序
-
----
-
-# 對錯誤知識的處理規則
-
-## 可明確確定錯誤時
-
-直接修正，並在必要時用以下格式標示：
-
-```md
-## 修正說明
-
-原文此處將＿＿＿＿說成＿＿＿＿，這是不準確的。  
-較合理的說法應為：＿＿＿＿。
+```sql
+SELECT
+	e.last_name ,
+	e.salary ,
+	jg.grade_level
+FROM employees e
+	INNER JOIN job_grades jg
+	ON e.salary BETWEEN jg.lowest_sal AND jg.highest_sal;
 ```
 
-## 可能錯誤，但尚未能完全確認時
+### 6. 笛卡尔积排错
 
-不要硬改成肯定句，改用以下格式：
+會產生這樣的錯誤是因為沒有正確的連接條件
 
-```md
-## 待查證
-
-原文此處指出＿＿＿＿。  
-但依上下文 / 常見定義來看，這裡可能有誤，需再查證。
+```sql
+SELECT
+    e.last_name,
+    d.department_name
+FROM
+    employees e,
+    departments d
+WHERE
+    e.department_id = d.department_id;
 ```
 
-## 屬於術語混用時
+評語：你抓到缺少連接條件這個根因了，但原本 SQL 把分號放錯位置，會直接造成語法錯誤。
 
-統一全篇術語，並在第一次出現時補一句說明：
+## 进阶题
 
-```md
-下文統一使用「＿＿＿＿」這個名稱，原文中出現的「＿＿＿＿ / ＿＿＿＿」在此視為同一概念。
+### 7. 重复列名与表别名
+
+
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	e.department_id ,
+	d.department_id ,
+	d.department_name
+FROM employees e
+		INNER JOIN departments d
+		ON e.department_id = d.department_id;
 ```
 
----
+評語：原本少了 `e.department_id`，沒有完整滿足題目「兩邊的 department_id 都要保留」的要求。
 
-# 對前後矛盾的處理規則
+### 8. 三表连接加普通筛选条件
 
-遇到矛盾時，使用以下判斷順序：
-
-1. 看定義是否一致
-2. 看例子是否支持該說法
-3. 看程式碼或流程是否支持該說法
-4. 看哪一個版本與整篇主線更一致
-5. 最後再決定採用哪一個版本
-
-若仍無法決定，應保留衝突資訊，但不能混寫成同時都對。
-
-建議格式：
-
-```md
-## 衝突說明
-
-原文前段認為＿＿＿＿，後段又認為＿＿＿＿，兩者彼此衝突。  
-目前依＿＿＿＿作為主判準，以下正文採用＿＿＿＿版本。  
-另一種說法暫列為待確認。
+```sql
+SELECT
+	e.last_name ,
+	d.department_name ,
+	l.city
+FROM employees e
+	INNER JOIN departments d
+	ON e.department_id = d.department_id
+	INNER JOIN locations l
+	ON d.location_id = l.location_id
+WHERE l.city = 'Seattle';
 ```
 
----
+### 9. 员工、部门、岗位三表内连接
 
-# 建議輸出風格
-
-## 風格要求
-
-* 教學型
-* 清楚、直接、去口語噪音
-* 優先讓讀者看懂，而不是追求華麗
-* 盡量把抽象理解落到具體規則
-* 該拆段就拆段
-* 該列步驟就列步驟
-* 該比較就直接比較
-
-## 避免的寫法
-
-* 空泛總結
-* 過度濃縮
-* 只改字面，不修邏輯
-* 讓衝突內容並存卻不說明
-* 用更複雜的話重寫原本就難懂的話
-
----
-
-# 單篇筆記建議模板（重構版）
-
-```md
-# 標題
-
-> 關鍵字：術語 A、術語 B、術語 C  
-> 建議回查情境：分不清規則時、忘記判斷流程時、看例子卻對不上結論時
-
-## 這篇在解決什麼問題
-
-這篇主要在說明＿＿＿＿。  
-原始內容中存在＿＿＿＿問題，因此以下會用較穩定的順序重新整理。
-
-## 先講結論
-
-先記住一件事：＿＿＿＿。
-
-## 核心定義 / 規則
-
-### 1. ＿＿＿＿
-＿＿＿＿
-
-### 2. ＿＿＿＿
-＿＿＿＿
-
-## 判斷 / 推理過程
-
-1. 先看＿＿＿＿
-2. 再判斷＿＿＿＿
-3. 若＿＿＿＿，則＿＿＿＿
-4. 若＿＿＿＿，則＿＿＿＿
-
-## 例子說明
-
-### 例子 1
-＿＿＿＿
-
-### 例子 2
-＿＿＿＿
-
-## 常見混淆點
-
-- ＿＿＿＿ vs ＿＿＿＿
-- 很多人會誤以為＿＿＿＿，其實＿＿＿＿
-- 原文容易卡住的點在於＿＿＿＿
-
-## 修正說明（如有）
-
-原文此處把＿＿＿＿寫成＿＿＿＿，這裡改為＿＿＿＿。
-
-## 一句話抓核心
-
-＿＿＿＿的關鍵不在於＿＿＿＿，而在於＿＿＿＿。
+```sql
+SELECT
+	e.last_name ,
+	d.department_name ,
+	j.job_title
+FROM employees e
+	INNER JOIN departments d
+	ON e.department_id = d.department_id
+	INNER JOIN jobs j
+	ON e.job_id = j.job_id;
 ```
 
----
+### 10. 左外连接
 
-# 多段重構時的拆分原則
-
-當原文很長，且同時混有多個子主題時，應拆成多篇，而不是硬塞在一篇重寫。
-
-適合拆分的情況：
-
-* 同時涵蓋定義、流程、例子、延伸、實作
-* 每個子主題都值得獨立回查
-* 原文已經有明顯的主題切換
-* 不拆會讓單篇過長
-
-拆分後建議保留：
-
-* 總入口頁
-* 每篇單一主題
-* 明確閱讀順序
-* 哪篇適合看定義、哪篇適合看例子、哪篇適合看易錯點
-
----
-
-# 何時需要明確保留「原文問題說明」
-
-當原文問題本身對學習有價值時，可以保留一小節：
-
-```md
-## 原文容易誤解的地方
-
-原文之所以難懂，通常是因為：
-
-1. 先講了結果，後講條件
-2. 同一名詞前後用法不一致
-3. 例子沒有明確對應到規則
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	LEFT JOIN departments d
+	ON e.department_id = d.department_id;
 ```
 
-但這一節不能喧賓奪主，重點仍然是給出整理後的穩定版本。
+### 11. 右外连接
 
----
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	RIGHT JOIN departments d
+	ON e.department_id = d.department_id;
+```
 
-# 成功標準
+### 12. 左表独有数据
 
-完成後，應盡量滿足：
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	LEFT JOIN departments d
+	ON e.department_id = d.department_id
+WHERE d.department_id IS NULL;
+```
 
-1. 讀者可以用自己的話複述核心概念
-2. 讀者能說出條件、結論與例子的關係
-3. 全文術語一致
-4. 前後沒有未處理的矛盾
-5. 錯誤知識已修正或被明確標示
-6. 內容既能順讀，也能回查
-7. 比原文更適合學習，而不只是更好看
+### 13. 右表独有数据
 
----
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	RIGHT JOIN departments d
+	ON e.department_id = d.department_id
+WHERE e.employee_id IS NULL;
+```
 
-# 禁止事項
+### 14. 自连接基础题
 
-* 不可把錯誤知識包裝得更流暢卻不修正
-* 不可只調排版、不處理內容矛盾
-* 不可將互相衝突的結論同時保留為正確
-* 不可過度濃縮成只有考前速記
-* 不可為了保留原味而犧牲可理解性
-* 不可在無把握時假裝確定
+```sql
+SELECT
+	CONCAT(e.last_name, ' works for ', m.last_name)
+FROM employees e
+	INNER JOIN employees m
+	ON  e.manager_id = m.employee_id;
+```
 
----
+### 15. 自连接定位经理信息
 
-# 一句話總結這個 skill
+```sql
+SELECT
+	e.last_name ,
+	e.manager_id  ,
+	m.last_name
+FROM employees e
+		INNER JOIN employees m
+		ON e.manager_id = m.employee_id
+	WHERE e.last_name = 'Chen';
+```
 
-這個 skill 的任務不是「把筆記排整齊」，而是：
+評語：原本用 `LIKE '%Chen%'` 會放寬條件，這題題目指定的是精確匹配 `last_name = 'Chen'`。
 
-> **把原本難學、難懂、可能有錯的筆記，重構成真正能拿來學習的版本。**
+## 挑战题
+
+### 16. USING 写法
+
+```sql
+SELECT
+	e.last_name ,
+	j.job_title
+FROM employees e
+	INNER JOIN jobs j
+    USING (job_id);
+```
+
+### 17. NATURAL JOIN 思考题
+
+`employees` 和 `departments` 中不只一个同名字段。请你思考：
+
+1. 如果直接写 `employees NATURAL JOIN departments`，数据库可能会按哪些同名字段自动连接？
+
+`department_id`、`manager_id`都會參與連接
+
+2. 为什么这种写法在这两张表上有风险？
+
+因為大部分我們只需要靠 `department_id` 就能找到我們要的部門，多了一個 `manager_id` 很容易引發意想不到的錯誤
+
+3. 请把它改写成更稳妥、更明确的 SQL。
+
+```sql
+SELECT
+	*
+FROM employees e
+	INNER JOIN departments d
+	ON e.department_id = d.department_id
+```
+
+### 18. UNION 与 UNION ALL
+
+```sql
+SELECT
+	e.last_name ,
+	e.email
+FROM employees e
+WHERE e.department_id > 90
+UNION
+SELECT
+	e.last_name ,
+	e.email
+FROM employees e
+WHERE e.email LIKE '%a%';
+
+SELECT
+	e.last_name ,
+	e.email
+FROM employees e
+WHERE e.department_id > 90
+UNION ALL
+SELECT
+	e.last_name ,
+	e.email
+FROM employees e
+WHERE e.email LIKE '%a%';
+```
+
+差別在於 UNION 會去重
+
+### 19. 模拟满外连接
+
+```sql
+SELECT
+	e.employee_id,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	LEFT JOIN departments d
+	ON e.department_id = d.department_id
+UNION ALL
+SELECT
+	e.employee_id,
+	e.last_name ,
+	d.department_name
+FROM employees e
+	RIGHT JOIN departments d
+	ON e.department_id = d.department_id
+WHERE e.employee_id IS NULL;
+```
+
+### 20. 只保留左右两边各自独有的数据
+
+```sql
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+LEFT JOIN departments d
+ON e.department_id = d.department_id
+	WHERE d.department_id IS NULL
+UNION ALL
+SELECT
+	e.employee_id ,
+	e.last_name ,
+	d.department_name
+FROM employees e
+RIGHT JOIN departments d
+ON e.department_id = d.department_id
+WHERE e.employee_id IS NULL;
+```
+
+評語：原本寫 `d.department_name IS NULL` 在這份資料下多半能用，但用關聯鍵 `d.department_id IS NULL` 判斷未匹配資料更穩、更貼近筆記寫法。
+
+### 21. SQL92 改写为 SQL99
+
+```sql
+SELECT
+    e.last_name,
+    d.department_name,
+    l.city
+FROM employees e
+INNER JOIN departments d
+ON e.department_id = d.department_id
+INNER JOIN locations l
+ON d.location_id = l.location_id
+WHERE l.city LIKE 'S%';
+```
