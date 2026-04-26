@@ -1,355 +1,328 @@
-# 4 SELECT 的执行过程
+# 第八章_聚合函数
 
-> 所属章节：MySQL 基础篇 / 第 08 章 聚合函数
+这一章开始把“单行数据怎么处理”推进到“多行数据怎么汇总、分组、筛选与排序”。重点不只是记住 `AVG()`、`SUM()`、`COUNT()` 这些函数名称，而是建立一套完整的聚合查询思维：
 
-## 本节导读
+1. 什么是聚合函数？
+2. 聚合函数如何处理 `NULL`？
+3. 如何使用 `GROUP BY` 决定统计维度？
+4. 如何使用 `HAVING` 筛选分组后的统计结果？
+5. `SELECT` 查询在逻辑上到底按什么顺序处理？
+6. 逻辑执行顺序和 MySQL 优化器的真实执行计划有什么差异？
 
-本节整理 `SELECT` 查询从书写结构到实际执行顺序的全过程。重点不是只记住语法顺序，而是理解 SQL 在执行时会先做什么、后做什么，以及每个阶段如何基于前一个阶段生成的结果继续处理数据。
+目前这一章整理出 `4` 个小节，内容从聚合函数基础一路推进到 `GROUP BY`、`HAVING` 和 `SELECT` 的执行过程。适合按顺序学习，也适合在写统计查询、报表 SQL、分组分析或排查 SQL 错误时快速回查。
 
-建议阅读顺序：
+> 说明：本 README 对应新版笔记内容。如果你把 9.5 分版本文件覆盖回原本文件名，可以直接使用下面的链接；如果你保留了 `9.5分版本` 这类新文件名，请同步调整链接。
 
-1. 先看 `SELECT` 查询的标准结构，建立整体框架。
-2. 再区分书写顺序与实际执行顺序。
-3. 最后结合虚拟表（VT）示例，理解多表连接、分组、筛选与排序是怎样一步步发生的。
+## 本章在整体学习地图中的位置
 
-## 前置知识
+- 前七章已经建立了数据库概念、MySQL 环境、基础查询、运算符、排序分页、多表查询与单行函数。
+- 这一章开始正式进入“多行数据汇总”的阶段，是从基础查询过渡到统计查询、报表查询、分组分析的关键节点。
+- 如果这一章没有建立好，后面在写报表、分组统计、关联统计、筛选聚合结果或理解 SQL 执行顺序时会很容易混淆。
+- 本章也是后续学习子查询、复杂查询、窗口函数、执行计划与 SQL 优化的重要基础。
 
-- 建议先读：[2 GROUP BY](./2%20GROUP%20BY.md)
-- 建议先读：[3 HAVING](./3%20HAVING.md)
+## 本章学习目标
 
-## 关键字
+学完本章后，应该能够做到：
 
-`SELECT` `执行顺序` `书写顺序` `虚拟表` `FROM` `WHERE` `GROUP BY` `HAVING` `ORDER BY` `LIMIT`
+1. 看懂并正确使用 `AVG()`、`SUM()`、`MIN()`、`MAX()`、`COUNT()`。
+2. 分清 `COUNT(*)`、`COUNT(1)`、`COUNT(列名)`、`COUNT(DISTINCT 列名)` 的差异。
+3. 理解聚合函数通常会忽略 `NULL`，但 `COUNT(*)` 是统计行数，不受某个列是否为 `NULL` 影响。
+4. 使用 `GROUP BY` 按单个字段或多个字段进行分组统计。
+5. 理解 `SELECT` 中非聚合字段和 `GROUP BY` 字段之间的规则，尤其是 `ONLY_FULL_GROUP_BY`。
+6. 正确区分 `WHERE` 和 `HAVING`：前者筛选原始行，后者筛选分组后的统计结果。
+7. 看懂 `SELECT` 的书写顺序、逻辑执行顺序与真实执行计划之间的差异。
+8. 理解 `LEFT JOIN` 中条件写在 `ON` 和写在 `WHERE` 的差异。
+9. 写出结构清楚、可维护、较不容易出错的聚合查询 SQL。
 
-## 建议回查情境
+## 建议阅读顺序
 
-- 想确认 SQL 的书写顺序和实际执行顺序为什么不同。
-- 忘记 `WHERE`、`GROUP BY`、`HAVING`、`ORDER BY` 的先后关系时。
-- 想理解为什么某些别名可以在 `ORDER BY` 中使用、却不能在 `WHERE` 中使用时。
-- 需要复习多表连接或外连接在执行过程中各阶段如何形成虚拟表时。
+1. [1 聚合函数](./1%20聚合函数.md)
+2. [2 GROUP BY](./2%20GROUP%20BY.md)
+3. [3 HAVING](./3%20HAVING.md)
+4. [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
 
-## 内容导航
+建议不要跳过前两篇。`HAVING` 和 `SELECT` 执行过程都建立在聚合函数与分组查询的基础上，如果直接看后面两篇，容易只记住语法顺序，却不理解为什么 SQL 要这样写。
 
-- [4.1 查询的结构](#41-查询的结构)
-- [4.2 SELECT 执行顺序](#42-select-执行顺序)
-- [4.3 SQL 查询的执行顺序与虚拟表演变](#43-sql-查询的执行顺序与虚拟表演变)
-- [4.3.1 SQL 查询的执行顺序](#431-sql-查询的执行顺序)
-- [4.3.2 SQL 查询各阶段的执行细节](#432-sql-查询各阶段的执行细节)
-- [4.3.3 SQL 执行示例](#433-sql-执行示例)
-- [4.3.4 外连接（OUTER JOIN）SQL 执行顺序示例](#434-外连接outer-joinsql-执行顺序示例)
+## 先读哪几篇不容易卡住
 
-## 4.1 查询的结构
+- 第一次进入本章时，先读 [1 聚合函数](./1%20聚合函数.md)，先建立“多行汇总”和“单行处理”的区别。
+- 接着读 [2 GROUP BY](./2%20GROUP%20BY.md) 和 [3 HAVING](./3%20HAVING.md)，把“怎么分组”和“怎么筛选分组结果”连起来理解。
+- 如果你常常分不清 SQL 是按什么顺序执行的，再读 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)，把 `FROM`、`WHERE`、`GROUP BY`、`HAVING`、`SELECT`、`ORDER BY`、`LIMIT` 的关系串起来。
+- 如果你写 `LEFT JOIN` 聚合查询时经常出现结果少掉、`NULL` 被过滤掉、外连接变得像内连接的问题，优先回查 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md) 中关于 `LEFT JOIN`、`ON`、`WHERE` 的内容。
 
-`SELECT` 查询常见有两种写法，本质上都遵循相同的处理流程。
+## 本章小节
 
-```sql
-# 方式 1
-SELECT ..., ...., ...
-FROM ..., ..., ....
-WHERE 多表的连接条件
-AND 不包含组函数的过滤条件
-GROUP BY ..., ...
-HAVING 包含组函数的过滤条件
-ORDER BY ... ASC/DESC
-LIMIT ..., ...;
+- [1 聚合函数](./1%20聚合函数.md)：建立聚合函数的概念，整理 `AVG()`、`SUM()`、`MIN()`、`MAX()`、`COUNT()` 的适用场景；补充没有 `GROUP BY` 时的隐含分组、聚合函数对 `NULL` 的处理、`DISTINCT` 聚合、`COUNT(*)` / `COUNT(1)` / `COUNT(列名)` / `COUNT(DISTINCT)` 的差异，以及 MyISAM 与 InnoDB 下 `COUNT` 的基本理解。
 
-# 方式 2
-SELECT ..., ...., ...
-FROM ... JOIN ...
-ON 多表的连接条件
-JOIN ...
-ON ...
-WHERE 不包含组函数的过滤条件
-AND/OR 不包含组函数的过滤条件
-GROUP BY ..., ...
-HAVING 包含组函数的过滤条件
-ORDER BY ... ASC/DESC
-LIMIT ..., ...;
-```
+- [2 GROUP BY](./2%20GROUP%20BY.md)：整理分组查询的基本写法、单列分组、多列分组、`NULL` 分组、`WHERE` / `HAVING` / `ORDER BY` 与 `GROUP BY` 的关系；补充 `ONLY_FULL_GROUP_BY`、函数依赖、`ANY_VALUE()`、`WITH ROLLUP`、`GROUPING()` 与 `ROLLUP` 在不同 MySQL 版本中的注意点。
 
-各子句的职责可以先记成下面这样：
+- [3 HAVING](./3%20HAVING.md)：整理如何对分组后的统计结果继续筛选，并系统对比 `WHERE` 与 `HAVING` 的执行阶段、可用条件、结果差异与效率原则；补充没有明确 `GROUP BY` 时的隐含聚合组、`HAVING` 中使用 `SELECT` 别名、常见错误与推荐写法。
 
-- `FROM`：决定从哪些表中取数据。
-- `ON`：多表关联时，用来消除无效的笛卡尔积匹配。
-- `WHERE`：对原始数据行进行筛选。
-- `GROUP BY`：决定按什么维度分组。
-- `HAVING`：对分组后的结果再次筛选。
-- `ORDER BY`：对最终结果排序。
-- `LIMIT`：限制返回记录数，常用于分页。
+- [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)：从查询结构、子句职责、书写顺序、逻辑执行顺序一路整理到虚拟表演变；补充逻辑执行顺序与 MySQL 优化器真实执行计划的差异、别名可见范围、`ONLY_FULL_GROUP_BY`、`LEFT JOIN` 中 `ON` 与 `WHERE` 的差异、`DISTINCT` / `ORDER BY` / `LIMIT` 的关系，以及用 `EXPLAIN` 查看真实执行计划的观念。
 
-## 4.2 SELECT 执行顺序
+## 本章核心观念总整理
 
-你需要同时记住 `SELECT` 查询的两个顺序：**书写顺序**和**执行顺序**。
+### 1. 聚合函数是“多行输入，一行输出”
 
-### 4.2.1 关键字的书写顺序不能颠倒
+聚合函数会对一组数据做汇总计算，例如：
 
 ```sql
-SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT ...
+SELECT AVG(salary), SUM(salary), COUNT(*)
+FROM employees;
 ```
 
-### 4.2.2 SELECT 语句的实际执行顺序
+如果没有写 `GROUP BY`，整个查询结果会被视为一个隐含的分组，因此最终通常只返回一行统计结果。
+
+### 2. `COUNT(*)` 是统计行数，`COUNT(列名)` 是统计非 `NULL` 值
+
+常见判断原则：
 
 ```sql
-FROM -> WHERE -> GROUP BY -> HAVING -> SELECT 的字段 -> DISTINCT -> ORDER BY -> LIMIT
+COUNT(*)                -- 统计行数，最适合表示“有几笔记录”
+COUNT(1)                -- 统计常数 1，通常结果与 COUNT(*) 相同
+COUNT(column_name)      -- 统计该列不为 NULL 的行数
+COUNT(DISTINCT column)  -- 统计该列不重复且非 NULL 的值数量
 ```
 
-下面这个例子同时展示了书写顺序和执行顺序：
+实际开发中，如果目的是统计总行数，优先使用 `COUNT(*)`。
+
+### 3. `GROUP BY` 决定统计维度
+
+`GROUP BY` 不是单纯为了去重，而是决定“按照什么维度产生统计结果”。
+
+```sql
+SELECT department_id, AVG(salary)
+FROM employees
+GROUP BY department_id;
+```
+
+这条 SQL 的含义是：每个部门产生一组统计结果。
+
+### 4. 多列分组统计的是“字段组合”
+
+```sql
+SELECT department_id, job_id, SUM(salary)
+FROM employees
+GROUP BY department_id, job_id;
+```
+
+这不是分别按 `department_id` 和 `job_id` 各统计一次，而是按照 `(department_id, job_id)` 这个组合分组。
+
+### 5. `WHERE` 和 `HAVING` 的分工不同
+
+```sql
+WHERE   -- 分组前，过滤原始数据行
+HAVING  -- 分组后，过滤聚合统计结果
+```
+
+推荐思路：
+
+- 普通行条件优先写在 `WHERE`。
+- 聚合函数条件写在 `HAVING`。
+- 能先过滤的数据，不要拖到分组后才过滤。
+
+### 6. `SELECT` 的书写顺序不等于逻辑执行顺序
+
+常见书写顺序：
+
+```sql
+SELECT ...
+FROM ...
+WHERE ...
+GROUP BY ...
+HAVING ...
+ORDER BY ...
+LIMIT ...;
+```
+
+常见逻辑执行顺序：
+
+```text
+FROM / JOIN / ON
+-> WHERE
+-> GROUP BY
+-> 聚合函数
+-> HAVING
+-> SELECT
+-> DISTINCT
+-> ORDER BY
+-> LIMIT
+```
+
+但要注意：这是帮助理解 SQL 的逻辑模型，不代表 MySQL 底层一定按照这个方式逐步物理执行。真实执行方式要看优化器和 `EXPLAIN`。
+
+### 7. `LEFT JOIN` 的右表条件放错位置，会改变查询结果
+
+在 `LEFT JOIN` 中：
+
+- 连接匹配条件通常写在 `ON`。
+- 如果把右表条件写在 `WHERE`，可能会把外连接补出来的 `NULL` 行过滤掉，使结果看起来像 `INNER JOIN`。
+
+这在“查询所有客户及其订单统计”、“查询所有部门及员工人数”这类 SQL 中特别常见。
+
+## 本章适合快速回查的主题
+
+### 聚合函数相关
+
+- 想确认聚合函数和单行函数的差别：看 [1 聚合函数](./1%20聚合函数.md)
+- 忘记 `AVG()`、`SUM()`、`MIN()`、`MAX()`、`COUNT()` 各自适合什么场景：看 [1 聚合函数](./1%20聚合函数.md)
+- 想确认聚合函数如何处理 `NULL`：看 [1 聚合函数](./1%20聚合函数.md)
+- 想确认没有 `GROUP BY` 时聚合函数会怎样计算：看 [1 聚合函数](./1%20聚合函数.md)
+- 想确认 `COUNT(*)`、`COUNT(1)`、`COUNT(列名)`、`COUNT(DISTINCT)` 的差异：看 [1 聚合函数](./1%20聚合函数.md)
+- 想确认为什么 `COUNT(列名)` 不适合直接替代 `COUNT(*)`：看 [1 聚合函数](./1%20聚合函数.md)
+
+### GROUP BY 相关
+
+- 想确认 `GROUP BY` 的书写位置与基本规则：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想比较单列分组和多列分组：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想确认多列分组到底是“分别分组”还是“组合分组”：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想确认 `GROUP BY` 如何处理 `NULL`：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想确认 `SELECT` 中哪些字段必须写进 `GROUP BY`：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想确认 `ONLY_FULL_GROUP_BY` 为什么会报错：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想回查 `WITH ROLLUP` 的小计、总计列：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+- 想确认 `GROUPING()` 用来解决什么问题：看 [2 GROUP BY](./2%20GROUP%20BY.md)
+
+### HAVING 相关
+
+- 想确认为什么聚合函数不能写在 `WHERE` 中：看 [3 HAVING](./3%20HAVING.md)
+- 想比较 `WHERE` 与 `HAVING` 的区别：看 [3 HAVING](./3%20HAVING.md)
+- 想知道普通条件应该写在 `WHERE` 还是 `HAVING`：看 [3 HAVING](./3%20HAVING.md)
+- 想确认聚合条件应该写在哪里：看 [3 HAVING](./3%20HAVING.md)
+- 想确认 `HAVING` 是否一定要搭配 `GROUP BY`：看 [3 HAVING](./3%20HAVING.md)
+- 想确认 `HAVING` 中能不能使用 `SELECT` 别名：看 [3 HAVING](./3%20HAVING.md)
+
+### SELECT 执行过程相关
+
+- 想回查 `SELECT` 的书写顺序和逻辑执行顺序：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+- 想理解 `FROM`、`JOIN`、`ON`、`WHERE`、`GROUP BY`、`HAVING`、`ORDER BY` 的处理关系：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+- 想理解为什么某些别名可以在 `ORDER BY` 使用，却不能在 `WHERE` 使用：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+- 想确认 `LEFT JOIN` 中条件放在 `ON` 和 `WHERE` 的差异：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+- 想理解虚拟表 `VT` 在多表连接或外连接中的演变：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+- 想确认 `EXPLAIN` 是用来看真实执行计划，而不是逻辑顺序：看 [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)
+
+### 练习相关
+
+- 想直接开始按难度练第八章：看 [第八章_聚合函数练习题](./練習題/第八章_聚合函数练习题.md)
+
+## 哪几篇最常当速查页
+
+- [1 聚合函数](./1%20聚合函数.md)：适合快速回查 `COUNT(*)`、`COUNT(列名)`、`COUNT(DISTINCT)`、`AVG()`、`SUM()`、`NULL` 处理等常用聚合函数问题。
+- [2 GROUP BY](./2%20GROUP%20BY.md)：适合确认分组规则、分组字段、多列分组、`ONLY_FULL_GROUP_BY`、`WITH ROLLUP` 与 `GROUPING()`。
+- [3 HAVING](./3%20HAVING.md)：适合快速区分 `WHERE` 和 `HAVING` 的写法、适用场景、效率原则与常见错误。
+- [4 SELECT 的执行过程](./4%20SELECT%20的执行过程.md)：适合理解复杂查询为什么这样写，尤其是排查执行顺序、别名可见性、外连接条件位置与真实执行计划问题。
+
+## 常用 SQL 模板
+
+### 1. 基础聚合查询
 
 ```sql
 SELECT
-    DISTINCT player_id,
-    player_name,
-    COUNT(*) AS num          -- 执行顺序 5
-FROM player
-JOIN team ON player.team_id = team.team_id  -- 执行顺序 1
-WHERE height > 1.80                         -- 执行顺序 2
-GROUP BY player.team_id                     -- 执行顺序 3
-HAVING num > 2                              -- 执行顺序 4
-ORDER BY num DESC                           -- 执行顺序 6
-LIMIT 2;                                    -- 执行顺序 7
-```
-
-> 在 `SELECT` 语句执行这些步骤时，每一步都会生成一个中间结果，可以理解成一个“虚拟表”。这个虚拟表会作为下一步的输入，直到最终得到查询结果。
-
-## 4.3 SQL 查询的执行顺序与虚拟表演变
-
-在 MySQL 查询执行过程中，SQL 语句的**书写顺序**与**执行顺序**并不相同。每个阶段都会生成一个虚拟表（Virtual Table，简称 `VT`），这个虚拟表会在后续阶段继续被修改、筛选或转换，直到最终得到结果集。
-
-### 4.3.1 SQL 查询的执行顺序
-
-| 执行顺序 | SQL 关键字 | 作用 | 产生的虚拟表 |
-| --- | --- | --- | --- |
-| 1 | `FROM` | 确定主表，获取原始数据 | `VT1` |
-| 2 | `JOIN (ON)` | 计算笛卡尔积，并按 `ON` 条件过滤；外连接时还会补外部行 | `VT1-1`、`VT1-2`、`VT1-3` |
-| 3 | `WHERE` | 过滤不符合条件的行 | `VT2` |
-| 4 | `GROUP BY` | 按指定字段分组 | `VT3` |
-| 5 | `HAVING` | 对分组后的数据进行筛选 | `VT4` |
-| 6 | `SELECT` | 选取需要返回的字段 | `VT5-1` |
-| 7 | `DISTINCT` | 去除重复数据 | `VT5-2` |
-| 8 | `ORDER BY` | 对结果集排序 | `VT6` |
-| 9 | `LIMIT` | 限制返回行数，得到最终结果 | `VT7` |
-
-### 4.3.2 SQL 查询各阶段的执行细节
-
-#### 1. `FROM` 阶段：获取初始数据
-
-- 从指定表中获取所有数据，形成初始虚拟表 `VT1`。
-- 如果是多表查询，会继续执行 `JOIN`：
-- 先计算笛卡尔积，形成 `VT1-1`。
-- 再按照 `ON` 条件筛选，形成 `VT1-2`。
-- 如果是外连接，还会补上未匹配的外部行，形成 `VT1-3`。
-- 多表联查时，上述过程会重复，直到得到最终的 `VT1`。
-
-#### 2. `WHERE` 阶段：行过滤
-
-- 在 `VT1` 的基础上按照 `WHERE` 条件筛选数据，得到 `VT2`。
-- 这个阶段只处理单行数据，不处理分组后的结果。
-
-#### 3. `GROUP BY` 阶段：数据分组
-
-- 将 `VT2` 按照 `GROUP BY` 指定的字段分组，形成 `VT3`。
-- 这个阶段的重点是“分组”，不是“筛选”。
-- 分组完成后，可以理解为每个分组对应一行聚合结果。
-
-#### 4. `HAVING` 阶段：分组后筛选
-
-- 在 `VT3` 的基础上执行 `HAVING` 过滤，得到 `VT4`。
-- `WHERE` 过滤的是原始数据行，发生在分组之前。
-- `HAVING` 过滤的是分组后的结果，发生在分组之后。
-
-#### 5. `SELECT` 阶段：字段提取
-
-- 从 `VT4` 中提取最终需要显示的字段，得到 `VT5-1`。
-
-#### 6. `DISTINCT` 阶段：去重
-
-- 如果使用了 `DISTINCT`，就会对 `VT5-1` 去重，形成 `VT5-2`。
-
-#### 7. `ORDER BY` 阶段：排序
-
-- 对 `VT5-2` 进行排序，形成 `VT6`。
-
-#### 8. `LIMIT` 阶段：限制返回行数
-
-- 在 `VT6` 的基础上截取指定数量的记录，最终得到 `VT7`。
-
-### 4.3.3 SQL 执行示例
-
-假设有一个 `orders` 表：
-
-| order_id | customer_id | total_price | order_date |
-| --- | --- | --- | --- |
-| 1 | 101 | 1000 | 2024-01-01 |
-| 2 | 102 | 1500 | 2024-01-02 |
-| 3 | 101 | 500 | 2024-01-03 |
-| 4 | 103 | 2000 | 2024-01-04 |
-
-示例查询：
-
-```sql
-SELECT customer_id, SUM(total_price) AS total_spent
+    COUNT(*) AS total_count,
+    AVG(amount) AS avg_amount,
+    SUM(amount) AS total_amount,
+    MAX(amount) AS max_amount,
+    MIN(amount) AS min_amount
 FROM orders
-WHERE total_price > 800
-GROUP BY customer_id
-HAVING SUM(total_price) > 2000
-ORDER BY total_spent DESC
-LIMIT 2;
+WHERE status = 'SUCCESS';
 ```
 
-#### 执行顺序与虚拟表变化
-
-1. `FROM orders`
-
-形成 `VT1`，也就是 `orders` 表的全部数据。
-
-2. `WHERE total_price > 800`
-
-只保留 `total_price > 800` 的记录，形成 `VT2`：
-
-| order_id | customer_id | total_price |
-| --- | --- | --- |
-| 1 | 101 | 1000 |
-| 2 | 102 | 1500 |
-| 4 | 103 | 2000 |
-
-3. `GROUP BY customer_id`
-
-按 `customer_id` 分组，形成 `VT3`：
-
-| customer_id | SUM(total_price) |
-| --- | --- |
-| 101 | 1000 |
-| 102 | 1500 |
-| 103 | 2000 |
-
-4. `HAVING SUM(total_price) > 2000`
-
-过滤掉 `SUM(total_price) <= 2000` 的分组，形成 `VT4`：
-
-| customer_id | total_spent |
-| --- | --- |
-| 无匹配数据 | 无匹配数据 |
-
-5. `SELECT customer_id, SUM(total_price) AS total_spent`
-
-形成 `VT5-1`，与 `VT4` 对应。
-
-6. `DISTINCT`
-
-本例未使用 `DISTINCT`，跳过。
-
-7. `ORDER BY total_spent DESC`
-
-由于没有匹配数据，因此没有实际排序结果。
-
-8. `LIMIT 2`
-
-由于没有匹配数据，因此最终仍为空结果集。
-
-> 最终结果为空，因为没有任何分组满足 `HAVING SUM(total_price) > 2000`。
-
-### 4.3.4 外连接（OUTER JOIN）SQL 执行顺序示例
-
-外连接（`LEFT JOIN`、`RIGHT JOIN`、`FULL JOIN`）的执行顺序与普通 `INNER JOIN` 略有不同，关键差异在于**外部行的补充**。
-
-#### 4.3.4.1 示例数据
-
-假设有两张表：`customers`（客户表）和 `orders`（订单表）。
-
-`customers` 表：
-
-| customer_id | customer_name |
-| --- | --- |
-| 1 | Alice |
-| 2 | Bob |
-| 3 | Charlie |
-| 4 | David |
-
-`orders` 表：
-
-| order_id | customer_id | total_price |
-| --- | --- | --- |
-| 101 | 1 | 1000 |
-| 102 | 1 | 500 |
-| 103 | 2 | 1500 |
-| 104 | 5 | 2000 |
-
-#### 4.3.4.2 示例 SQL
-
-假设我们要查询**所有客户的信息**，包括他们的订单总金额。如果某个客户没有订单，也应该显示出来，此时订单金额会显示为 `NULL`。
+### 2. 分组统计查询
 
 ```sql
-SELECT c.customer_id, c.customer_name, SUM(o.total_price) AS total_spent
-FROM customers c
-LEFT JOIN orders o ON c.customer_id = o.customer_id
-GROUP BY c.customer_id, c.customer_name
-ORDER BY total_spent DESC;
+SELECT
+    group_column,
+    COUNT(*) AS total_count,
+    SUM(amount) AS total_amount
+FROM table_name
+WHERE 分组前条件
+GROUP BY group_column;
 ```
 
-#### 4.3.4.3 SQL 执行顺序解析
+### 3. 分组后筛选查询
 
-以下是这条 SQL 的实际执行顺序，以及每一步的虚拟表变化。
+```sql
+SELECT
+    group_column,
+    COUNT(*) AS total_count,
+    SUM(amount) AS total_amount
+FROM table_name
+WHERE 分组前条件
+GROUP BY group_column
+HAVING SUM(amount) > 10000;
+```
 
-**1. `FROM customers`**
+### 4. 多列分组查询
 
-首先查询 `customers` 表，形成 `VT1`：
+```sql
+SELECT
+    department_id,
+    job_id,
+    COUNT(*) AS employee_count,
+    AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id, job_id;
+```
 
-| customer_id | customer_name |
-| --- | --- |
-| 1 | Alice |
-| 2 | Bob |
-| 3 | Charlie |
-| 4 | David |
+### 5. LEFT JOIN 聚合查询
 
-**2. `LEFT JOIN`（`ON` 连接）**
+```sql
+SELECT
+    c.customer_id,
+    c.customer_name,
+    COUNT(o.order_id) AS order_count,
+    SUM(o.total_price) AS total_spent
+FROM customers c
+LEFT JOIN orders o
+    ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.customer_name;
+```
 
-- 先计算 `customers` 和 `orders` 的所有可能组合，形成 `VT1-1`。
-- 再应用 `ON c.customer_id = o.customer_id` 条件，形成 `VT1-2`。
-- 因为是 `LEFT JOIN`，还要保留左表中没有匹配成功的记录，并把右表字段补成 `NULL`，形成最终的 `VT1-3`。
+## 学习与练习建议
 
-| customer_id | customer_name | order_id | total_price |
-| --- | --- | --- | --- |
-| 1 | Alice | 101 | 1000 |
-| 1 | Alice | 102 | 500 |
-| 2 | Bob | 103 | 1500 |
-| 3 | Charlie | NULL | NULL |
-| 4 | David | NULL | NULL |
+学习本章时，不建议只背语法。更好的练习方式是每看到一个 SQL，都问自己四个问题：
 
-**3. `GROUP BY customer_id, customer_name`**
+1. 原始数据来自哪几张表？
+2. 哪些条件应该在分组前过滤？
+3. 分组维度是什么？
+4. 哪些条件必须等聚合结果出来后才能过滤？
 
-按照 `customer_id` 和 `customer_name` 分组，形成 `VT3`：
+建议练习顺序：
 
-| customer_id | customer_name | SUM(total_price) |
-| --- | --- | --- |
-| 1 | Alice | 1500 |
-| 2 | Bob | 1500 |
-| 3 | Charlie | NULL |
-| 4 | David | NULL |
+1. 先写不分组的聚合查询。
+2. 再写单列 `GROUP BY`。
+3. 再写多列 `GROUP BY`。
+4. 再加入 `HAVING`。
+5. 最后加入 `JOIN`、`LEFT JOIN`、`ORDER BY`、`LIMIT`。
 
-**4. `SELECT` 选取字段**
+当 SQL 变复杂时，不要一开始就从 `SELECT` 写起，可以先按逻辑拆解：
 
-提取 `customer_id`、`customer_name` 和 `SUM(o.total_price) AS total_spent`，形成 `VT5-1`：
+```text
+先确定 FROM / JOIN
+再确定 WHERE
+再确定 GROUP BY
+再确定聚合函数
+再确定 HAVING
+最后确定 SELECT / ORDER BY / LIMIT
+```
 
-| customer_id | customer_name | total_spent |
-| --- | --- | --- |
-| 1 | Alice | 1500 |
-| 2 | Bob | 1500 |
-| 3 | Charlie | NULL |
-| 4 | David | NULL |
+这样比较不容易把条件放错位置。
 
-**5. `ORDER BY total_spent DESC`**
+## 本章最终掌握标准
 
-按照 `total_spent` 降序排序，`NULL` 默认排在最后：
+如果你能独立回答下面这些问题，代表本章已经掌握得比较稳：
 
-| customer_id | customer_name | total_spent |
-| --- | --- | --- |
-| 1 | Alice | 1500 |
-| 2 | Bob | 1500 |
-| 3 | Charlie | NULL |
-| 4 | David | NULL |
+1. `COUNT(*)` 和 `COUNT(列名)` 差在哪里？
+2. 为什么 `AVG(column)` 会受到 `NULL` 的影响？
+3. 为什么聚合函数不能直接写在 `WHERE` 中？
+4. `WHERE` 和 `HAVING` 的执行阶段有什么不同？
+5. 多列 `GROUP BY a, b` 是什么意思？
+6. `SELECT` 中为什么不能随便放非分组字段？
+7. `ONLY_FULL_GROUP_BY` 主要是在限制什么？
+8. `WITH ROLLUP` 会多产生什么结果？
+9. 为什么 `LEFT JOIN` 的右表条件写在 `WHERE` 可能会让结果变少？
+10. 逻辑执行顺序和 `EXPLAIN` 看到的真实执行计划有什么关系？
 
-#### 4.3.4.4 关键点
+## 返回导航
 
-1. `LEFT JOIN` 会保留左表中的所有记录，即使右表没有匹配数据。
-2. `GROUP BY` 发生在 `LEFT JOIN` 之后，因此会基于连接后的结果继续分组。
-3. `ORDER BY` 发生在最后，因此可以直接按聚合得到的别名 `total_spent` 排序。
+- [回到 README](../../README.md)
+- [上一章：第七章_单行函数](../第七章_单行函数/README.md)
